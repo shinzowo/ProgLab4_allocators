@@ -25,6 +25,7 @@ int main(){
     std::cout<<"\n";
     */
     std::cout<<"Allocator map(int int), without restriction\n";
+    
     std::map<int, int, std::less<int>, c_allocator<std::pair<const int, int>>> map_cont;
 
     for (int i = 0; i < 10; ++i) {

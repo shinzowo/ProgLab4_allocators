@@ -1,6 +1,6 @@
 #include<iostream>
 #include<memory>
-template <class T>
+template <class T, std::size_t ChunkSize=10>
 
 struct c_allocator{
     using value_type = T;
@@ -11,6 +11,7 @@ struct c_allocator{
         free_list=nullptr;
         allocated_count=0;
         restriction=false;
+        all_pools=nullptr;
     }
     c_allocator(std::size_t max_elements) noexcept{
         pool_size=max_elements;
@@ -19,6 +20,15 @@ struct c_allocator{
         free_list=nullptr;
         allocated_count=0;
         restriction=true;
+        all_pools=nullptr;
+    }
+    ~c_allocator(){
+        while (all_pools) {
+            PoolNode* temp = all_pools;        
+            all_pools = all_pools->next;        
+            ::operator delete(temp->pool);      
+            delete temp;                                      
+    }
     }
     template <class U> c_allocator(const c_allocator<U>&other) noexcept{
         pool_size=other.pool_size;
@@ -26,6 +36,7 @@ struct c_allocator{
         current_index=other.current_index;
         free_list=nullptr;
         allocated_count=0;
+        all_pools=nullptr;
     }
     
     T* allocate(std::size_t n){
@@ -60,16 +71,25 @@ struct c_allocator{
    
     template <typename U>
     struct rebind {
-        using other = c_allocator<U>;
+        using other = c_allocator<U, ChunkSize>;
     };
 
     struct Node{
         Node* next;
     };
+     
+    struct PoolNode {
+        T* pool;
+        PoolNode* next;
+    };
 
     void allocate_pool(){
-        current_pool=static_cast<T*>(::operator new(pool_size*sizeof(T)));
+        T* new_pool = static_cast<T*>(::operator new(ChunkSize * sizeof(T)));
+        PoolNode* new_pool_node=new PoolNode{new_pool, all_pools};
+        all_pools=new_pool_node;
+        current_pool=new_pool;
         current_index=0;
+
     }
     std::size_t pool_size;
     T* current_pool;
@@ -77,6 +97,7 @@ struct c_allocator{
     Node* free_list;
     std::size_t allocated_count;
     bool restriction;
+    PoolNode* all_pools;
 };
 
 template<class T, class U>
